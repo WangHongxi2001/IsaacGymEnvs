@@ -142,7 +142,7 @@ class Cartpole(VecTask):
         return self.obs_buf
 
     def reset_idx(self, env_ids):
-        positions = 0.2 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
+        positions = 1.0 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
         velocities = 0.5 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
 
         self.dof_pos[env_ids, :] = positions[:]
@@ -183,7 +183,11 @@ def compute_cartpole_reward(pole_angle, pole_vel, cart_vel, cart_pos,
     # type: (Tensor, Tensor, Tensor, Tensor, float, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
 
     # reward is combo of angle deviated from upright, velocity of cart, and velocity of pole moving
-    reward = 1.0 - pole_angle * pole_angle - 0.01 * torch.abs(cart_vel) - 0.005 * torch.abs(pole_vel)
+    reward = 1.0 - torch.square(pole_angle) - 0.02 * torch.square(cart_vel) - 0.005 * torch.square(pole_vel)
+    
+    cart_pos_error = torch.square(torch.ones_like(cart_pos)*(0) - cart_pos)
+    cart_pos_error_rew = torch.exp(-cart_pos_error/0.25)
+    reward += cart_pos_error_rew
 
     # adjust reward for reset agents
     reward = torch.where(torch.abs(cart_pos) > reset_dist, torch.ones_like(reward) * -2.0, reward)
